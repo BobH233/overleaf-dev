@@ -36,6 +36,7 @@ import ExportsController from './Features/Exports/ExportsController.mjs'
 import PasswordResetRouter from './Features/PasswordReset/PasswordResetRouter.mjs'
 import StaticPagesRouter from './Features/StaticPages/StaticPagesRouter.mjs'
 import ChatController from './Features/Chat/ChatController.js'
+import SyncProjectToGithubController from './Features/GithubSync/SyncProjectToGithubController.mjs'
 import Modules from './infrastructure/Modules.js'
 import {
   RateLimiter,
@@ -74,6 +75,10 @@ const { renderUnsupportedBrowserPage, unsupportedBrowserMiddleware } =
   UnsupportedBrowserMiddleware
 
 const rateLimiters = {
+  syncGithub: new RateLimiter('sync-github', {
+    points: 10,
+    duration: 60,
+  }),
   addEmail: new RateLimiter('add-email', {
     points: 10,
     duration: 60,
@@ -762,6 +767,15 @@ async function initialize(webRouter, privateApiRouter, publicApiRouter) {
   )
 
   webRouter.get(
+    '/Project/:Project_id/sync/github',
+    RateLimiterMiddleware.rateLimit(rateLimiters.syncGithub, {
+      params: ['Project_id'],
+    }),
+    AuthorizationMiddleware.ensureUserCanReadProject,
+    SyncProjectToGithubController.syncProjectToGithub
+  )
+
+  webRouter.get(
     '/Project/:Project_id/download/zip',
     RateLimiterMiddleware.rateLimit(rateLimiters.zipDownload, {
       params: ['Project_id'],
@@ -769,6 +783,7 @@ async function initialize(webRouter, privateApiRouter, publicApiRouter) {
     AuthorizationMiddleware.ensureUserCanReadProject,
     ProjectDownloadsController.downloadProject
   )
+
   webRouter.get(
     '/project/download/zip',
     AuthenticationController.requireLogin(),
