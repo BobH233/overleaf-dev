@@ -4,6 +4,7 @@ import getMeta from '../../../utils/meta'
 import importOverleafModules from '../../../../macros/import-overleaf-module.macro'
 import ActionsCopyProject from './actions-copy-project'
 import ActionsWordCount from './actions-word-count'
+import ActionSyncGithub from './action-sync-github'
 
 const components = importOverleafModules('editorLeftMenuManageTemplate') as {
   import: { default: ElementType }
@@ -32,6 +33,12 @@ export default function ActionsMenu() {
         ))}
         <li>
           <ActionsWordCount />
+        </li>
+      </ul>
+      <h4>{t('sync')}</h4>
+      <ul className="list-unstyled nav">
+        <li>
+          <ActionSyncGithub />
         </li>
       </ul>
     </>

@@ -2773,5 +2773,6 @@
   "zotero_reference_loading_error_forbidden": "Could not load references from Zotero, please re-link your account and try again",
   "zotero_sync_description": "With the Zotero integration you can import your references from Zotero into your __appName__ projects.",
   "zotero_upgrade_prompt_content": "Link your Zotero account to search and add your references from Zotero directly in your project—they’ll automatically be added to your .bib file. Or import them as a file into your __appName__ projects.",
-  "zotero_upgrade_prompt_title": "Cite from Zotero"
+  "zotero_upgrade_prompt_title": "Cite from Zotero",
+  "sync_with_github": "Sync With Github"
 }

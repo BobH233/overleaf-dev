@@ -2208,5 +2208,6 @@
   "zotero_reference_loading_error_forbidden": "",
   "zotero_sync_description": "",
   "zotero_upgrade_prompt_content": "",
-  "zotero_upgrade_prompt_title": ""
+  "zotero_upgrade_prompt_title": "",
+  "sync_with_github": ""
 }
