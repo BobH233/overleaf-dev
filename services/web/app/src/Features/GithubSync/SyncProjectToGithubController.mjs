@@ -11,13 +11,6 @@ import simpleGit from 'simple-git';
 
 const CACHE_GIT_REPO_DIR = '/overleaf/cache/github-sync'
 
-const DEBUG_REPO_NAME = ''
-const DEBUG_GITHUB_USERNAME = ''
-const DEBUG_GITHUB_TOKEN = ''
-const DEBUG_COMMIT_USER = ''
-const DEBUG_COMMIT_EMAIL = ''
-
-
 
 function copyDirSync(src, dest) {
   // 确保目标文件夹存在
@@ -44,73 +37,113 @@ function copyDirSync(src, dest) {
 
 const SyncProjectToGithubController = {
   syncProjectToGithub(req, res, next) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    const sendLog = (msg) => {
+      res.write(`data: ${msg}\n\n`);
+    };
+
     const projectId = req.params.Project_id
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
     const tempDir = path.join('/tmp/ol_github_sync', `github-sync-${projectId}-${timestamp}`)
     const tempGitDir = path.join('/tmp/ol_github_sync', `github-sync-${projectId}-${timestamp}-git`)
-    // 1. Make temporary directory for GitHub repository
+    let syncConfigJson = {}
+    sendLog('Start sync to github...');
+    // temporary directory for GitHub repository
     try {
       fs.mkdirSync(tempDir, { recursive: true })
       console.log(`Temporary directory created at: ${tempDir}`)
+      sendLog('Temperary project directory created.');
     } catch (err) {
       console.error(`Failed to create temporary directory: ${err.message}`)
-      return res.status(500).send('Error creating temporary directory')
+      sendLog('Error creating temporary directory');
+      return res.end();
     }
 
-    // 2. Copy all project files and docs to the temporary directory
+    // Copy all project files and docs to the temporary directory
     async.parallel([
       cb => SyncProjectToGithubController.copyAllFilesToTempDir(projectId, tempDir, cb),
       cb => SyncProjectToGithubController.copyAllDocsToTempDir(projectId, tempDir, cb)
     ], err => {
       if (err) {
         console.error(`Error copying project content: ${err.message}`)
-        return res.status(500).send('Error copying project content')
+        sendLog('Error copying project content');
+        return res.end();
       }
-
+      sendLog('All files and docs copied successfully');
       console.log('All files and docs copied successfully')
 
-      // 3. Initialize the Git repository
+
+
+      // read and check privacy file
+      const privacyFilePath = path.join(tempDir, '.github-sync-config.json')
+      if (!fs.existsSync(privacyFilePath)) {
+        console.error(`Privacy file not found: ${privacyFilePath}`)
+        sendLog('Github sync config file not found!');
+        return res.end();
+      }
+      try {
+        // read and parse the privacy file
+        const privacyFileContent = fs.readFileSync(privacyFilePath, 'utf-8')
+        syncConfigJson = JSON.parse(privacyFileContent)
+        // check properties existence
+        if (!syncConfigJson.commit_username || !syncConfigJson.github_token || !syncConfigJson.commit_email || !syncConfigJson.repo_https_url) {
+          console.error('Missing required properties in privacy file')
+          sendLog('Missing required properties in github sync config file');
+          return res.end();
+        }
+      } catch (err) {
+        console.error(`Failed to read or parse privacy file: ${err.message}`)
+        sendLog('Error reading or parsing privacy file');
+        return res.end();
+      }
+
+      // Initialize the Git repository
       try {
         fs.mkdirSync(tempGitDir, { recursive: true });
         console.log(`Temporary Git directory created at: ${tempGitDir}`);
       } catch (err) {
         console.error(`Failed to create temporary Git directory: ${err.message}`);
-        return res.status(500).send('Error creating temporary Git directory');
+        sendLog('Failed to create temporary Git directory');
+        return res.end();
       }
 
       const git = simpleGit(tempGitDir)
-      const remoteUrl = `https://${DEBUG_GITHUB_TOKEN}@github.com/${DEBUG_GITHUB_USERNAME}/${DEBUG_REPO_NAME}.git`;
-      
-      git.clone(remoteUrl, tempGitDir, ['--no-checkout'])
+      const remoteUrl = syncConfigJson.repo_https_url.replace('https://', `https://${syncConfigJson.github_token}@`);
+
+      sendLog('Cloning remote repository...');
+      git.clone(remoteUrl, tempGitDir, ['--no-checkout', '--depth=1'])
         .then(() => {
+          sendLog('Copying files to cloned repository...');
           // sync copy all the files from tempDir to the cloned repo
           copyDirSync(tempDir, tempGitDir);
+          const privacy_file_path = path.join(tempGitDir, '.github-sync-config.json');
+          if (fs.existsSync(privacy_file_path)) {
+            fs.unlinkSync(privacy_file_path);
+          }
           console.log('Files copied to cloned repository');
-          return git.addConfig('user.email', DEBUG_COMMIT_EMAIL);
+          sendLog('Committing changes...');
+          return git.addConfig('user.email', syncConfigJson.commit_email);
         })
-        .then(() => git.addConfig('user.name', DEBUG_COMMIT_USER))
+        .then(() => git.addConfig('user.name', syncConfigJson.commit_username))
         .then(() => {
           return git.add('./*'); // 添加现有文件
         })
         .then(() => git.commit('Sync changes from Overleaf project'))
-        .then(() => git.push('origin', 'main'))
-        .then(() => res.status(200).send('Project synced to GitHub successfully'))
+        .then(() => {
+          sendLog('Pushing changes to remote repository...');
+          return git.push('origin', 'main')
+        })
+        .then(() => {
+          sendLog('Successfully synced with remote repository');
+          res.end();
+        })
         .catch(err => {
           console.error(`Failed to sync with remote repository: ${err.message}`);
-          res.status(500).send('Error syncing with remote repository');
+          sendLog('Failed to sync with remote repository!');
+          res.end();
         });
-
-      // 4. Commit the changes and push to the remote repository (placeholder for now)
-
-      // 5. Delete the temporary directory
-      // fs.rmSync(tempDir, { recursive: true }, err => {
-      //   if (err) {
-      //     console.error(`Failed to delete temporary directory: ${err.message}`)
-      //     return res.status(500).send('Error deleting temporary directory')
-      //   }
-      //   console.log(`Temporary directory deleted: ${tempDir}`)
-      // })
-      
     })
   },
 
