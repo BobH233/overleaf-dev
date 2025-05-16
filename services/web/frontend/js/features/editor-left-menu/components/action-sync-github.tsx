@@ -29,7 +29,7 @@ export default function ActionSyncGithub() {
   return (
     <>
       <LeftMenuButton onClick={handleShowModal} svgIcon={<img src={githubIconPath} alt="GitHub" width="20" height="20" />}>
-        {t('sync_with_github')}
+        {t('push_project_to_github')}
       </LeftMenuButton>
       {showModal && (
         <OLModal show onHide={handleCloseModal}>

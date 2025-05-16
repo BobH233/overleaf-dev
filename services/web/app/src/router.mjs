@@ -767,13 +767,23 @@ async function initialize(webRouter, privateApiRouter, publicApiRouter) {
   )
 
   webRouter.post(
-    '/Project/:Project_id/sync/github',
+    '/Project/:Project_id/github-sync/push',
     RateLimiterMiddleware.rateLimit(rateLimiters.syncGithub, {
       params: ['Project_id'],
     }),
     AuthorizationMiddleware.ensureUserCanReadProject,
-    SyncProjectToGithubController.syncProjectToGithub
+    SyncProjectToGithubController.pushProjectToGithub
   )
+
+  webRouter.get(
+    '/Project/:Project_id/github-sync/check-config',
+    RateLimiterMiddleware.rateLimit(rateLimiters.syncGithub, {
+      params: ['Project_id'],
+    }),
+    AuthorizationMiddleware.ensureUserCanReadProject,
+    SyncProjectToGithubController.checkGithubConfigFile
+  )
+
 
   webRouter.get(
     '/Project/:Project_id/download/zip',

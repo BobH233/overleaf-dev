@@ -37,7 +37,43 @@ function copyDirSync(src, dest) {
 }
 
 const SyncProjectToGithubController = {
-  syncProjectToGithub(req, res, next) {
+  checkGithubConfigFile(req, res, next) {
+    const projectId = req.params.Project_id
+    ProjectEntityHandler.getAllDocs(projectId, (error, files) => {
+      if (error) {
+        return callback(error)
+      }
+      let ifConfigFileValid = false
+      let fail_reason = ''
+      let config_json_str = ''
+      for(const [relativePath, doc] of Object.entries(files)) {
+        if (relativePath === '/.github-sync-config.json') {
+          ifConfigFileValid = true
+          config_json_str = doc.lines.join('\n')
+          break
+        }
+      }
+      if(!ifConfigFileValid) {
+        fail_reason = 'github_sync_file_not_exist'
+      } else {
+        try {
+          const config_json = JSON.parse(config_json_str)
+          if (!config_json.commit_username || !config_json.github_token || !config_json.commit_email || !config_json.repo_https_url) {
+            fail_reason = 'github_sync_file_property_missing'
+            ifConfigFileValid = false
+          }
+        } catch (err) {
+          fail_reason = 'github_sync_file_json_invalid'
+          ifConfigFileValid = false
+        }
+      }
+      return res.json({
+        ifConfigFileValid,
+        fail_reason
+      })
+    })
+  },
+  pushProjectToGithub(req, res, next) {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
