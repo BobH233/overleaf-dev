@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import useAsync from '../../../shared/hooks/use-async'
 import {
 	getUserFacingMessage,
-	postJSON,
 	getJSON,
 } from '../../../infrastructure/fetch-json'
 import Notification from '../../../shared/components/notification'
@@ -17,6 +16,7 @@ import OLFormControl from '../../ui/components/ol/ol-form-control'
 import OLButton from '../../ui/components/ol/ol-button'
 import OLForm from '../../ui/components/ol/ol-form'
 import { useProjectContext } from '../../../shared/context/project-context'
+import getMeta from '../../../utils/meta'
 
 type Props = {
 	onCancel: () => void
@@ -28,11 +28,14 @@ function ModalSyncWithGithubForm({ onCancel, onSuccess }: Props) {
 	const [commitMessage, setCommitMessage] = useState('')
 	const [isConfigFileValid, setIsConfigFileValid] = useState<boolean | null>(null)
 	const [failReason, setFailReason] = useState('')
-	const { isLoading, isError, error, runAsync } = useAsync<void>()
+	const [isSyncing, setIsSyncing] = useState(false)
+	const [logs, setLogs] = useState<string[]>([])
+	const [isStreamComplete, setIsStreamComplete] = useState(false)
+	const logContainerRef = useRef<HTMLDivElement>(null)
+	const { isLoading, isError, error } = useAsync<void>()
 	const {
 		_id: projectId,
 		name: projectName,
-		tags: projectTags,
 	} = useProjectContext()
 
 	useEffect(() => {
@@ -49,24 +52,58 @@ function ModalSyncWithGithubForm({ onCancel, onSuccess }: Props) {
 		}
 	}, [projectId])
 
-	const handleSubmit = (e: React.FormEvent) => {
+	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault()
-		// runAsync(
-		// 	postJSON(`/project/${projectId}/sync-github`, {
-		// 		body: {
-		// 			message: commitMessage,
-		// 		},
-		// 	})
-		// )
-		// 	.then(() => {
-		// 		if (onSuccess) onSuccess()
-		// 	})
-		// 	.catch(() => {})
+		if (!projectId || commitMessage.trim() === '') return
+
+		setIsSyncing(true)
+		setLogs([])
+		setIsStreamComplete(false)
+
+		try {
+			const response = await fetch(`/project/${projectId}/github-sync/push`, {
+				method: 'POST',
+				headers: {
+					'X-CSRF-TOKEN': getMeta('ol-csrfToken'),
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({ commit_message: commitMessage }),
+			})
+
+			if (!response.ok) {
+				throw new Error('Failed to initiate sync process')
+			}
+
+			const reader = response.body?.getReader()
+			const decoder = new TextDecoder()
+
+			if (reader) {
+				let done = false
+				while (!done) {
+					const { value, done: readerDone } = await reader.read()
+					done = readerDone
+					if (value) {
+						const chunk = decoder.decode(value, { stream: true })
+						const lines = chunk.split('\n').map((line) => line.replace(/^data: /, '').trim())
+						setLogs((prevLogs) => [...prevLogs, ...lines])
+						if (logContainerRef.current) {
+							logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight
+						}
+					}
+				}
+			}
+
+			setIsStreamComplete(true)
+		} catch (error) {
+			console.error('Error during sync:', error)
+			setLogs((prevLogs) => [...prevLogs, 'Error during sync process.'])
+			setIsStreamComplete(true)
+		} finally {
+			setIsSyncing(false)
+		}
 	}
 
-	const handleChangeMessage = (
-		e: React.ChangeEvent<HTMLTextAreaElement>
-	) => {
+	const handleChangeMessage = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
 		setCommitMessage(e.currentTarget.value)
 	}
 
@@ -86,17 +123,15 @@ function ModalSyncWithGithubForm({ onCancel, onSuccess }: Props) {
 				<OLModalBody>
 					<p>{t('github_sync_config_instructions')}</p>
 					<a
-						href="https://example.com/github-sync-config"
+						href=""
 						target="_blank"
 						rel="noopener noreferrer"
 					>
 						{t('learn_more_about_github_sync_config_file')}
 					</a>
-					<p
-						style={{ marginTop: '16px' }}
-					>
-        		<strong>{t('github_sync_config_file_fail_reason_is')}</strong> {t(failReason)}
-    			</p>
+						<p style={{ marginTop: '16px' }}>
+						<strong>{t('github_sync_config_file_fail_reason_is')}</strong> {t(failReason)}
+					</p>
 				</OLModalBody>
 
 				<OLModalFooter>
@@ -124,29 +159,61 @@ function ModalSyncWithGithubForm({ onCancel, onSuccess }: Props) {
 						/>
 					</div>
 				)}
-				<OLForm onSubmit={handleSubmit}>
-					<OLFormControl
-						as="textarea"
-						rows={6}
-						placeholder={t('github_commit_message_placeholder')}
-						onChange={handleChangeMessage}
-						value={commitMessage}
-					/>
-				</OLForm>
+				{(!isSyncing && !isStreamComplete) && (
+					<OLForm onSubmit={handleSubmit}>
+						<OLFormControl
+							as="textarea"
+							rows={6}
+							placeholder={t('github_commit_message_placeholder')}
+							onChange={handleChangeMessage}
+							value={commitMessage}
+						/>
+					</OLForm>
+				)}
+				{(isSyncing || isStreamComplete) && (
+					<div
+						ref={logContainerRef}
+						style={{
+							height: '200px',
+							overflowY: 'auto',
+							backgroundColor: '#f5f5f5',
+							padding: '10px',
+							border: '1px solid #ddd',
+							borderRadius: '4px',
+							marginTop: '10px',
+							fontFamily: 'monospace',
+							whiteSpace: 'pre-wrap',
+							lineHeight: '1.2',
+						}}
+					>
+						{logs.map((log, index) => (
+							<div key={index}>{log}</div>
+						))}
+					</div>
+				)}
 			</OLModalBody>
 
 			<OLModalFooter>
-				<OLButton variant="secondary" onClick={onCancel}>
-					{t('cancel')}
-				</OLButton>
-				<OLButton
-					variant="primary"
-					onClick={handleSubmit}
-					disabled={commitMessage.trim() === '' || isLoading}
-					isLoading={isLoading}
-				>
-					{t('sync')}
-				</OLButton>
+				{!isSyncing && (
+					<OLButton variant="secondary" onClick={onCancel}>
+						{t('cancel')}
+					</OLButton>
+				)}
+				{isSyncing && isStreamComplete && (
+					<OLButton variant="primary" onClick={onCancel}>
+						{t('ok')}
+					</OLButton>
+				)}
+				{!isStreamComplete && (
+					<OLButton
+						variant="primary"
+						onClick={handleSubmit}
+						disabled={commitMessage.trim() === '' || isSyncing}
+						isLoading={isSyncing}
+					>
+						{t('sync')}
+					</OLButton>
+				)}
 			</OLModalFooter>
 		</>
 	)
