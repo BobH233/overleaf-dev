@@ -6,13 +6,48 @@ import FileStoreHandler from '../FileStore/FileStoreHandler.js'
 import fs from 'fs'
 import path from 'path'
 import async from 'async'
+import simpleGit from 'simple-git';
 
-const SyncProjectToGithubController  = {
+
+const CACHE_GIT_REPO_DIR = '/overleaf/cache/github-sync'
+
+const DEBUG_REPO_NAME = ''
+const DEBUG_GITHUB_USERNAME = ''
+const DEBUG_GITHUB_TOKEN = ''
+const DEBUG_COMMIT_USER = ''
+const DEBUG_COMMIT_EMAIL = ''
+
+
+
+function copyDirSync(src, dest) {
+  // 确保目标文件夹存在
+  if (!fs.existsSync(dest)) {
+    fs.mkdirSync(dest, { recursive: true });
+  }
+
+  // 遍历源目录的内容
+  const entries = fs.readdirSync(src, { withFileTypes: true });
+
+  entries.forEach(entry => {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+
+    if (entry.isDirectory()) {
+      // 如果是文件夹递归复制
+      copyDirSync(srcPath, destPath);
+    } else {
+      // 如果是文件直接复制
+      fs.copyFileSync(srcPath, destPath);
+    }
+  });
+}
+
+const SyncProjectToGithubController = {
   syncProjectToGithub(req, res, next) {
     const projectId = req.params.Project_id
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
     const tempDir = path.join('/tmp/ol_github_sync', `github-sync-${projectId}-${timestamp}`)
-    
+    const tempGitDir = path.join('/tmp/ol_github_sync', `github-sync-${projectId}-${timestamp}-git`)
     // 1. Make temporary directory for GitHub repository
     try {
       fs.mkdirSync(tempDir, { recursive: true })
@@ -34,7 +69,36 @@ const SyncProjectToGithubController  = {
 
       console.log('All files and docs copied successfully')
 
-      // 3. Initialize the Git repository (placeholder for now)
+      // 3. Initialize the Git repository
+      try {
+        fs.mkdirSync(tempGitDir, { recursive: true });
+        console.log(`Temporary Git directory created at: ${tempGitDir}`);
+      } catch (err) {
+        console.error(`Failed to create temporary Git directory: ${err.message}`);
+        return res.status(500).send('Error creating temporary Git directory');
+      }
+
+      const git = simpleGit(tempGitDir)
+      const remoteUrl = `https://${DEBUG_GITHUB_TOKEN}@github.com/${DEBUG_GITHUB_USERNAME}/${DEBUG_REPO_NAME}.git`;
+      
+      git.clone(remoteUrl, tempGitDir, ['--no-checkout'])
+        .then(() => {
+          // sync copy all the files from tempDir to the cloned repo
+          copyDirSync(tempDir, tempGitDir);
+          console.log('Files copied to cloned repository');
+          return git.addConfig('user.email', DEBUG_COMMIT_EMAIL);
+        })
+        .then(() => git.addConfig('user.name', DEBUG_COMMIT_USER))
+        .then(() => {
+          return git.add('./*'); // 添加现有文件
+        })
+        .then(() => git.commit('Sync changes from Overleaf project'))
+        .then(() => git.push('origin', 'main'))
+        .then(() => res.status(200).send('Project synced to GitHub successfully'))
+        .catch(err => {
+          console.error(`Failed to sync with remote repository: ${err.message}`);
+          res.status(500).send('Error syncing with remote repository');
+        });
 
       // 4. Commit the changes and push to the remote repository (placeholder for now)
 
@@ -46,9 +110,7 @@ const SyncProjectToGithubController  = {
       //   }
       //   console.log(`Temporary directory deleted: ${tempDir}`)
       // })
-
-      // 6. Respond with success message
-      res.status(200).send('Project synced to GitHub successfully')
+      
     })
   },
 
