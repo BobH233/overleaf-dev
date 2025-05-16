@@ -103,6 +103,11 @@ export default ProjectZipStreamManager = {
           path = path.slice(1)
         }
         logger.debug({ projectId }, 'Adding doc')
+        if(path == '.github-sync-config.json') {
+          // skip privacy file when downloading.
+          logger.debug({ projectId }, 'Skipping .github-sync-config.json')
+          return cb()
+        }
         archive.append(doc.lines.join('\n'), { name: path })
         setImmediate(cb)
       })
