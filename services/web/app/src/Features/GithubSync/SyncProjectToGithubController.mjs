@@ -9,7 +9,8 @@ import async from 'async'
 import simpleGit from 'simple-git';
 
 
-const CACHE_GIT_REPO_DIR = '/overleaf/cache/github-sync'
+const CACHE_GIT_REPO_DIR = '/tmp/ol_github_sync'
+const CACHE_OVERLEAF_PROJ_DIR = '/tmp/ol_github_sync'
 
 
 function copyDirSync(src, dest) {
@@ -46,8 +47,8 @@ const SyncProjectToGithubController = {
 
     const projectId = req.params.Project_id
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const tempDir = path.join('/tmp/ol_github_sync', `github-sync-${projectId}-${timestamp}`)
-    const tempGitDir = path.join('/tmp/ol_github_sync', `github-sync-${projectId}-${timestamp}-git`)
+    const tempDir = path.join(CACHE_OVERLEAF_PROJ_DIR, `github-sync-${projectId}-${timestamp}`)
+    const tempGitDir = path.join(CACHE_GIT_REPO_DIR, `github-sync-${projectId}-git`)
     let syncConfigJson = {}
     sendLog('Start sync to github...');
     // temporary directory for GitHub repository
@@ -112,38 +113,52 @@ const SyncProjectToGithubController = {
       const git = simpleGit(tempGitDir)
       const remoteUrl = syncConfigJson.repo_https_url.replace('https://', `https://${syncConfigJson.github_token}@`);
 
-      sendLog('Cloning remote repository...');
-      git.clone(remoteUrl, tempGitDir, ['--no-checkout', '--depth=1'])
-        .then(() => {
-          sendLog('Copying files to cloned repository...');
-          // sync copy all the files from tempDir to the cloned repo
-          copyDirSync(tempDir, tempGitDir);
-          const privacy_file_path = path.join(tempGitDir, '.github-sync-config.json');
-          if (fs.existsSync(privacy_file_path)) {
-            fs.unlinkSync(privacy_file_path);
+      (async () => {
+        try {
+          if (fs.existsSync(path.join(tempGitDir, `.git`))) {
+            sendLog('Git directory exists. Fetching latest...');
+            await git.cwd(tempGitDir);
+            await git.fetch();
+
+            const entries = fs.readdirSync(tempGitDir);
+            for (const entry of entries) {
+              if (entry !== '.git') {
+                const entryPath = path.join(tempGitDir, entry);
+                fs.rmSync(entryPath, { recursive: true, force: true });
+              }
+            }
+          } else {
+            sendLog('Cloning remote repository...');
+            await git.clone(remoteUrl, tempGitDir, ['--no-checkout', '--depth=1']);
+            await git.cwd(tempGitDir);
           }
-          console.log('Files copied to cloned repository');
+
+          sendLog('Copying files to Git directory...');
+          copyDirSync(tempDir, tempGitDir);
+
+          
+          const privacyFilePath = path.join(tempGitDir, '.github-sync-config.json');
+          if (fs.existsSync(privacyFilePath)) {
+            fs.unlinkSync(privacyFilePath);
+          }
+
           sendLog('Committing changes...');
-          return git.addConfig('user.email', syncConfigJson.commit_email);
-        })
-        .then(() => git.addConfig('user.name', syncConfigJson.commit_username))
-        .then(() => {
-          return git.add('./*'); // 添加现有文件
-        })
-        .then(() => git.commit('Sync changes from Overleaf project'))
-        .then(() => {
-          sendLog('Pushing changes to remote repository...');
-          return git.push('origin', 'main')
-        })
-        .then(() => {
+          await git.addConfig('user.email', syncConfigJson.commit_email);
+          await git.addConfig('user.name', syncConfigJson.commit_username);
+          await git.add('./*');
+          await git.commit('Sync changes from Overleaf project');
+
+          sendLog('Pushing changes...');
+          await git.push('origin', 'main');
           sendLog('Successfully synced with remote repository');
+          fs.rmSync(tempDir, { recursive: true, force: true });
           res.end();
-        })
-        .catch(err => {
-          console.error(`Failed to sync with remote repository: ${err.message}`);
+        } catch (err) {
+          console.error(`Git sync failed: ${err.message}`);
           sendLog('Failed to sync with remote repository!');
           res.end();
-        });
+        }
+      })();
     })
   },
 
