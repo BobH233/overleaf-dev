@@ -766,7 +766,7 @@ async function initialize(webRouter, privateApiRouter, publicApiRouter) {
     ExportsController.exportDownload
   )
 
-  webRouter.get(
+  webRouter.post(
     '/Project/:Project_id/sync/github',
     RateLimiterMiddleware.rateLimit(rateLimiters.syncGithub, {
       params: ['Project_id'],

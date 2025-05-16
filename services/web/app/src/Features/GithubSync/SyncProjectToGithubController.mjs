@@ -49,6 +49,9 @@ const SyncProjectToGithubController = {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
     const tempDir = path.join(CACHE_OVERLEAF_PROJ_DIR, `github-sync-${projectId}-${timestamp}`)
     const tempGitDir = path.join(CACHE_GIT_REPO_DIR, `github-sync-${projectId}-git`)
+    const postParameter = req.body || {}
+    const commitMessage = postParameter.commit_message || "Sync overleaf project to github"
+    sendLog('Your commit message is: ' + commitMessage);
     let syncConfigJson = {}
     sendLog('Start sync to github...');
     // temporary directory for GitHub repository
@@ -146,7 +149,7 @@ const SyncProjectToGithubController = {
           await git.addConfig('user.email', syncConfigJson.commit_email);
           await git.addConfig('user.name', syncConfigJson.commit_username);
           await git.add('./*');
-          await git.commit('Sync changes from Overleaf project');
+          await git.commit(commitMessage);
 
           sendLog('Pushing changes...');
           await git.push('origin', 'main');
