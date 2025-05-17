@@ -369,7 +369,7 @@ module.exports = {
     process.env.PROJECT_UPLOAD_TIMEOUT || '120000',
     10
   ),
-  maxUploadSize: 50 * 1024 * 1024, // 50 MB
+  maxUploadSize: 1000 * 1024 * 1024, // 50 MB
   multerOptions: {
     preservePath: process.env.MULTER_PRESERVE_PATH,
   },
