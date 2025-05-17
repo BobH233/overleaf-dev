@@ -2217,5 +2217,8 @@
   "github_sync_file_not_exist": "",
   "github_sync_file_property_missing": "",
   "github_sync_file_json_invalid": "",
-  "github_sync_configuration_required": ""
+  "github_sync_configuration_required": "",
+  "remove_temp_git_dir": "",
+  "remove_temp_git_dir_confirm_message": "",
+  "github_remove_temp_git_dir_error": ""
 }

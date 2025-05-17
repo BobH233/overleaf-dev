@@ -5,6 +5,7 @@ import importOverleafModules from '../../../../macros/import-overleaf-module.mac
 import ActionsCopyProject from './actions-copy-project'
 import ActionsWordCount from './actions-word-count'
 import ActionSyncGithub from './action-sync-github'
+import ActionRemoveTempGitDir from './action-remove-temp-git-dir'
 
 const components = importOverleafModules('editorLeftMenuManageTemplate') as {
   import: { default: ElementType }
@@ -39,6 +40,11 @@ export default function ActionsMenu() {
       <ul className="list-unstyled nav">
         <li>
           <ActionSyncGithub />
+        </li>
+      </ul>
+      <ul className="list-unstyled nav">
+        <li>
+          <ActionRemoveTempGitDir />
         </li>
       </ul>
     </>

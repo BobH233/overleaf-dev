@@ -200,7 +200,20 @@ const SyncProjectToGithubController = {
       })();
     })
   },
-
+  removeTempGitDir(req, res, next) {
+    const projectId = req.params.Project_id
+    const tempGitDir = path.join(CACHE_GIT_REPO_DIR, `github-sync-${projectId}-git`)
+    if (fs.existsSync(tempGitDir)) {
+      fs.rmSync(tempGitDir, { recursive: true, force: true });
+      console.log(`Temporary Git directory removed: ${tempGitDir}`);
+    } else {
+      console.log(`Temporary Git directory does not exist: ${tempGitDir}`);
+    }
+    return res.json({
+      success: true,
+      message: 'Temporary Git directory removed successfully'
+    });
+  },
   copyAllFilesToTempDir(projectId, tempDir, callback) {
     ProjectEntityHandler.getAllFiles(projectId, (error, files) => {
       if (error) {

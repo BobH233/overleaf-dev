@@ -2782,5 +2782,8 @@
   "github_sync_file_not_exist": "We cannot find .github-sync-config.json in the base directory of your project.",
   "github_sync_file_property_missing": "There are some properties missing in .github-sync-config.json. Please follow the instructions to add them.",
   "github_sync_file_json_invalid": "We cannot parse your .github-sync-config.json file. Please check if the file is a valid JSON file.",
-  "github_sync_configuration_required": "Cannot Read Sync Config File"
+  "github_sync_configuration_required": "Cannot Read Sync Config File",
+  "remove_temp_git_dir": "Remove Cached git Directory",
+  "remove_temp_git_dir_confirm_message": "This action will remove the cached git directory. And next time you want to push, we will clone a complete new git repository which may take a while. Are you sure you want to do this?",
+  "github_remove_temp_git_dir_error": "Fail to remove the cached git directory."
 }

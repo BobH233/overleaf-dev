@@ -775,6 +775,15 @@ async function initialize(webRouter, privateApiRouter, publicApiRouter) {
     SyncProjectToGithubController.pushProjectToGithub
   )
 
+  webRouter.post(
+    '/Project/:Project_id/github-sync/remove-temp-git-dir',
+    RateLimiterMiddleware.rateLimit(rateLimiters.syncGithub, {
+      params: ['Project_id'],
+    }),
+    AuthorizationMiddleware.ensureUserCanReadProject,
+    SyncProjectToGithubController.removeTempGitDir
+  )
+
   webRouter.get(
     '/Project/:Project_id/github-sync/check-config',
     RateLimiterMiddleware.rateLimit(rateLimiters.syncGithub, {
