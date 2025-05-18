@@ -13,6 +13,17 @@ export OVERLEAF_TAG ?= sharelatex/sharelatex:$(BRANCH_NAME)-$(MONOREPO_REVISION)
 
 all: build-base build-community
 
+WINFONTS_ZIP := winfonts.zip
+WINFONTS_URL := https://github.com/BobH233/overleaf-dev/releases/download/attachment/winfonts.zip
+
+$(WINFONTS_ZIP):
+	@if [ ! -f $(WINFONTS_ZIP) ]; then \
+		echo "Downloading winfonts.zip..."; \
+		curl -L -o $(WINFONTS_ZIP) $(WINFONTS_URL); \
+	else \
+		echo "winfonts.zip already exists, skipping download."; \
+	fi
+
 build-base:
 	cp .dockerignore $(MONOREPO_ROOT)
 	docker build \
@@ -27,8 +38,9 @@ build-base:
 	  $(MONOREPO_ROOT)
 
 
-build-community:
+build-community: $(WINFONTS_ZIP)
 	cp .dockerignore $(MONOREPO_ROOT)
+	cp $(WINFONTS_ZIP) $(MONOREPO_ROOT)
 	docker build \
 	  --build-arg BUILDKIT_INLINE_CACHE=1 \
 	  --progress=plain \

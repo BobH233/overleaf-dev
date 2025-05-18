@@ -121,3 +121,24 @@ ENTRYPOINT ["/sbin/my_init"]
 # This should be the last step to optimize docker image caching.
 ARG MONOREPO_REVISION
 RUN echo "monorepo-server-ce,$MONOREPO_REVISION" > /var/www/revisions.txt
+
+
+# 设置 TUNA 镜像源并安装 TeX Live 完整方案
+RUN tlmgr option repository https://mirrors.tuna.tsinghua.edu.cn/CTAN/systems/texlive/tlnet \
+ && tlmgr update --self \
+ && tlmgr install scheme-full
+
+COPY winfonts.zip /tmp/winfonts.zip
+
+RUN apt-get update && apt-get install -y unzip \
+ && unzip /tmp/winfonts.zip -d /tmp \
+ && mkdir -p /usr/share/fonts/winfonts \
+ && cp -r /tmp/winfonts/* /usr/share/fonts/winfonts/ \
+ && apt-get install -y latex-cjk-all texlive-lang-chinese texlive-lang-english xfonts-wqy \
+ && cd /usr/share/fonts/winfonts \
+ && mkfontscale && mkfontdir && fc-cache -fv
+
+RUN apt-get install -y texlive-xetex texlive-latex-extra texlive-science
+
+RUN tlmgr path add \
+ && apt-get install -y libxml-libxslt-perl
