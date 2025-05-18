@@ -2773,5 +2773,17 @@
   "zotero_reference_loading_error_forbidden": "Could not load references from Zotero, please re-link your account and try again",
   "zotero_sync_description": "With the Zotero integration you can import your references from Zotero into your __appName__ projects.",
   "zotero_upgrade_prompt_content": "Link your Zotero account to search and add your references from Zotero directly in your project—they’ll automatically be added to your .bib file. Or import them as a file into your __appName__ projects.",
-  "zotero_upgrade_prompt_title": "Cite from Zotero"
+  "zotero_upgrade_prompt_title": "Cite from Zotero",
+  "sync_with_github": "Sync With Github",
+  "push_project_to_github": "Push Project to Github",
+  "github_sync_config_instructions": "There's an error loading your Github Sync configuration. Please check the following instructions.",
+  "learn_more_about_github_sync_config_file": "Learn more about Github Sync Config File",
+  "github_sync_config_file_fail_reason_is": "Fail reason is: ",
+  "github_sync_file_not_exist": "We cannot find .github-sync-config.json in the base directory of your project.",
+  "github_sync_file_property_missing": "There are some properties missing in .github-sync-config.json. Please follow the instructions to add them.",
+  "github_sync_file_json_invalid": "We cannot parse your .github-sync-config.json file. Please check if the file is a valid JSON file.",
+  "github_sync_configuration_required": "Cannot Read Sync Config File",
+  "remove_temp_git_dir": "Remove Cached git Directory",
+  "remove_temp_git_dir_confirm_message": "This action will remove the cached git directory. And next time you want to push, we will clone a complete new git repository which may take a while. Are you sure you want to do this?",
+  "github_remove_temp_git_dir_error": "Fail to remove the cached git directory."
 }
